@@ -1,0 +1,21 @@
+{
+  "name": "super-wallet-tracker",
+  "version": "1.0.0",
+  "description": "Wallet tracker in Solana chain. Get wallet list from url parsing and get real time notification when wallet txs.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "nodemon": "nodemon app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@solana/spl-token": "^0.4.8",
+    "@solana/web3.js": "^1.95.1",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.1"
+  }
+}
