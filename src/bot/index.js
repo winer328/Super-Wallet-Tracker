@@ -4,6 +4,8 @@ const { customEditMessage, customSendMessage } = require("./customMessage")
 
 const { BOT_STATE } = require('./constant')
 
+const { scrapeWebsite } = require('../service/scrap_url')
+
 const bot = new TelegramBot(process.env.BOT_TOKEN)
 
 var botSystem = {
@@ -47,6 +49,11 @@ var botSystem = {
             // when user enter the general input
             else {
                 const current_bot_state = botSystem.bot_state
+                switch (current_bot_state) {
+                    case BOT_STATE.ADD_WALLET_LIST:
+                        await botSystem.addWalletList(message);
+                        break;
+                }
                 return
             }
         })
@@ -99,6 +106,20 @@ var botSystem = {
         botSystem.call_time++
         if (from_start) await customSendMessage(bot, message, text, inlineButtons)
         else await customEditMessage(bot, message, text, inlineButtons)
+        return;
+    },
+
+    addWalletList: async (message) => {
+        const degen_url = message.text
+        const prev_message = await bot.sendMessage(message.chat.id, 'fetching url ...', {
+            parse_mode: 'HTML',
+            reply_markup: JSON.stringify({
+                force_reply: false
+            })
+        })
+        const {token_name, mint_address, wallet_list} = await scrapeWebsite(degen_url)
+        await bot.deleteMessage(message.chat.id, prev_message.message_id)
+        
         return;
     }
 }
