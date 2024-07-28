@@ -6,6 +6,12 @@ const { BOT_STATE } = require('./constant')
 
 const { scrapeWebsite } = require('../service/scrap_url')
 
+const tokenListModel = require('../db/model/token_list')
+
+const { getExistWebhookData, addToken } = require('../db/action/token_list_action')
+const { addWebhook } = require('../service/helius_service')
+const { getTokenBalances } = require('../service/token_balance')
+
 const bot = new TelegramBot(process.env.BOT_TOKEN)
 
 var botSystem = {
@@ -41,9 +47,13 @@ var botSystem = {
             if (!text) return
 
             if (text === '/start') {
-                console.log(new Date(message.date * 1000), message.from.username, "started bot.");
-                await botSystem.goToFirstPage(message, true);
-                return;
+                console.log(new Date(message.date * 1000), message.from.username, "started bot.")
+                await botSystem.goToFirstPage(message, true)
+                return
+            } 
+            else if (text.lastIndexOf('/add') > -1) {
+                await botSystem.addSeperateWallet(message)
+                return
             }
 
             // when user enter the general input
@@ -66,15 +76,19 @@ var botSystem = {
 
             switch (command) {
                 case 'goto_firstpage':
-                    await botSystem.goToFirstPage(callback_data.message, false);
-                    break;
+                    await botSystem.goToFirstPage(callback_data.message, false)
+                    break
 
                 case 'add_wallet_list':
-                    await botSystem.goToAddWalletListPage(callback_data.message, false);
-                    break;
+                    await botSystem.goToAddWalletListPage(callback_data.message, false)
+                    break
+                
+                case 'add_seperate_wallet':
+                    await botSystem.goToAddSeperateWalletPage(callback_data.message, false)
+                    break
                 
                 default:
-                    break;
+                    break
                 
             }
 
@@ -83,11 +97,34 @@ var botSystem = {
     },
 
     goToFirstPage: async (message, from_start = true) => {
+
+
+        
+
+        // const exist_data = await getExistWebhookData()
+        // let result_register
+        // if (exist_data[0].length > 0) {
+        //     result_register = await addWebhook(['EZNTdLmX4BmDVgaqnSxhFE48eNRsybrjMvyS9CQsQqeh'], ["SWAP", "TRANSFER"], exist_data[0], exist_data[1])
+        // } else {
+        //     result_register = await addWebhook(['EZNTdLmX4BmDVgaqnSxhFE48eNRsybrjMvyS9CQsQqeh'], ["SWAP", "TRANSFER"])
+        // }
+
+        // console.log(result_register)
+
+
+
         botSystem.chat_id = message.chat.id
         botSystem.bot_state = BOT_STATE.START
-        const text = `welcome to this bot!`
+        let text = `welcome to the wallet tracking bot!\n 🟢 - You will get notification when transfer and swap transaction in registered wallet with that token\n 🟡 - You paused notification when transfer and swap transaction in registered wallet with that token\n\n`
+        const registered_data = await tokenListModel.find({ chat_id: message.chat.id })
+        text += `Registered tokens : ${registered_data.length}\n`
+        for (item of registered_data) {
+            const active_symbol = item.is_active == true? '🟢': '🟡'
+            text += ` ${active_symbol} <a class="text-entity-link" href="https://degen.fund/${item.mint_address}">${item.symbol}</a> ${item.wallet_number} wallets ${item.amount}M tokens holding\n`
+        }
         const inlineButtons = [
             [{ text: ' Add wallet list from url ', callback_data: 'add_wallet_list' }],
+            [{ text: ' Add seperate wallet address ', callback_data: 'add_seperate_wallet' }],
             [{ text: ' button2 ', callback_data: '234' }],
         ]
         botSystem.call_time++
@@ -97,8 +134,8 @@ var botSystem = {
     },
 
     goToAddWalletListPage: async (message, from_start = true) => {
-        botSystem.chat_id = message.chat.id;
-        botSystem.bot_state = BOT_STATE.ADD_WALLET_LIST;
+        botSystem.chat_id = message.chat.id
+        botSystem.bot_state = BOT_STATE.ADD_WALLET_LIST
         const text = `Enter url for fetch wallet list and token info.\n\nex: <code>https://www.degen.fund/DxmmzbTX8vSRnPmKzJsDnkaRUTbuzxYiDh1ExFvwydoK</code>`
         const inlineButtons = [
             [{ text: ' Back to the First Page ', callback_data: 'goto_firstpage' }],
@@ -106,21 +143,142 @@ var botSystem = {
         botSystem.call_time++
         if (from_start) await customSendMessage(bot, message, text, inlineButtons)
         else await customEditMessage(bot, message, text, inlineButtons)
-        return;
+        return
+    },
+
+    goToAddSeperateWalletPage: async (message, from_start = true) => {
+        botSystem.chat_id = message.chat.id
+        botSystem.bot_state = BOT_STATE.ADD_SEPERATE_WALLET
+        let text = `You can add seperate wallet address to token holder list.\n Once you add wallet to token holder list, you can receive real time notification when that wallet swap/transfer that token.\n You should add token address like /add wallet_address token_symbol\n\nex. <code>/add EZNTdLmX4BmDVgaqnSxhFE48eNRsybrjMvyS9CQsQqeh DARKBLUE</code>\n\nThere are registered token symbols that you can select.\n`
+        const registered_data = await tokenListModel.find({ chat_id: message.chat.id })
+        for (row of registered_data) {
+            text += ` - <code>${row.symbol}</code> ${row.wallet_number} wallet ${row.amount}M tokens holding\n`
+        }
+        const inlineButtons = [
+            [{ text: ' Back to the First Page ', callback_data: 'goto_firstpage' }],
+        ]
+        botSystem.call_time++
+        if (from_start) await customSendMessage(bot, message, text, inlineButtons)
+        else await customEditMessage(bot, message, text, inlineButtons)
+        return
     },
 
     addWalletList: async (message) => {
         const degen_url = message.text
-        const prev_message = await bot.sendMessage(message.chat.id, 'fetching url ...', {
+        let prev_message = await bot.sendMessage(message.chat.id, 'fetching url ...', {
             parse_mode: 'HTML',
             reply_markup: JSON.stringify({
                 force_reply: false
             })
         })
         const {token_name, mint_address, wallet_list} = await scrapeWebsite(degen_url)
+
         await bot.deleteMessage(message.chat.id, prev_message.message_id)
+        prev_message = await bot.sendMessage(message.chat.id, 'registering in Helius webhook ...', {
+            parse_mode: 'HTML',
+            reply_markup: JSON.stringify({
+                force_reply: false
+            })
+        })
+
+        const exist_data = await getExistWebhookData()
+        let result_register
+        if (exist_data[0].length > 0) {
+            result_register = await addWebhook(wallet_list, ["SWAP", "TRANSFER"], exist_data[0], exist_data[1])
+        } else {
+            result_register = await addWebhook(wallet_list, ["SWAP", "TRANSFER"])
+        }
+
+        if (result_register[0] == true) {
+            const balances = await getTokenBalances(wallet_list, mint_address)
+            let totalBalance = 0
+            balances.map(item => {
+                totalBalance += item.balance
+            })
+            const webhook_id = result_register[1]
+            let newOne = {}
+            newOne.chat_id = message.chat.id
+            newOne.mint_address = mint_address
+            newOne.symbol = token_name
+            newOne.amount = (totalBalance / 1000000).toFixed(2);
+            newOne.wallet_list = wallet_list
+            newOne.wallet_number = wallet_list.length
+            newOne.is_active = true
+            newOne.webhook_id = webhook_id
+            const result = await addToken(newOne)
+            console.log(result)
+            await bot.deleteMessage(message.chat.id, prev_message.message_id)
+            await bot.sendMessage(message.chat.id, result, {
+                parse_mode: 'HTML',
+                reply_markup: JSON.stringify({
+                    force_reply: false
+                })
+            })
+        } else {
+            await bot.deleteMessage(message.chat.id, prev_message.message_id)
+            console.log(result_register[1])
+            await bot.sendMessage(message.chat.id, result_register[1], {
+                reply_markup: JSON.stringify({
+                    force_reply: false
+                })
+            })
+        }
         
         return;
+    },
+
+    addSeperateWallet: async (message) => {
+        text = message.text
+        text = text.replace('/add', '').trim()
+        const wallet_address = (text.split(' '))[0]
+        const token_symbol = text.replace(wallet_address, '').trim()
+
+        const exist_token_row = await tokenListModel.find({ chat_id: message.chat.id, symbol: token_symbol })
+
+        if (exist_token_row.length > 0) {
+
+            const update_one = exist_token_row[0]
+            if (update_one.wallet_list.lastIndexOf(wallet_address) > -1) {
+                await bot.sendMessage(message.chat.id, ` ⚠️ <code>${wallet_address}</code> is already registered`, {
+                    parse_mode: 'HTML',
+                    reply_markup: JSON.stringify({
+                        force_reply: false
+                    })
+                })
+                return
+            }
+            result_register = await addWebhook([wallet_address], ["SWAP", "TRANSFER"], update_one.webhook_id, update_one.wallet_list)
+
+            if (result_register[0] === true) {
+                const balances = await getTokenBalances([wallet_address], update_one.mint_address)
+                update_one.wallet_list = [...update_one.wallet_list, wallet_address]
+                update_one.wallet_number++
+                update_one.amount += balances[0].balance
+                await update_one.save()
+                await bot.sendMessage(message.chat.id, ` 🎉 <code>${wallet_address}</code> is registered in ${update_one.symbol} token holder list`, {
+                    parse_mode: 'HTML',
+                    reply_markup: JSON.stringify({
+                        force_reply: false
+                    })
+                })
+            } else {
+                console.log(result_register[1])
+                await bot.sendMessage(message.chat.id, result_register[1], {
+                    reply_markup: JSON.stringify({
+                        force_reply: false
+                    })
+                })
+            }
+
+        } else {
+            await bot.sendMessage(message.chat.id, ' Excuse me, the token that you entered does not registered yet.\n Please register the token from url first.', {
+                reply_markup: 'HTML',
+                reply_markup: JSON.stringify({
+                    force_reply: false
+                })
+            })
+        }
+        return
     }
 }
 
