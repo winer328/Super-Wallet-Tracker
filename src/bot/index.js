@@ -61,6 +61,10 @@ var botSystem = {
                 case 'goto_firstpage':
                     await botSystem.goToFirstPage(callback_data.message, false);
                     break;
+
+                case 'add_wallet_list':
+                    await botSystem.goToAddWalletListPage(callback_data.message, false);
+                    break;
                 
                 default:
                     break;
@@ -76,8 +80,21 @@ var botSystem = {
         botSystem.bot_state = BOT_STATE.START
         const text = `welcome to this bot!`
         const inlineButtons = [
-            [{ text: ' button1 ', callback_data: '123' }],
+            [{ text: ' Add wallet list from url ', callback_data: 'add_wallet_list' }],
             [{ text: ' button2 ', callback_data: '234' }],
+        ]
+        botSystem.call_time++
+        if (from_start) await customSendMessage(bot, message, text, inlineButtons)
+        else await customEditMessage(bot, message, text, inlineButtons)
+        return;
+    },
+
+    goToAddWalletListPage: async (message, from_start = true) => {
+        botSystem.chat_id = message.chat.id;
+        botSystem.bot_state = BOT_STATE.ADD_WALLET_LIST;
+        const text = `Enter url for fetch wallet list and token info.\n\nex: <code>https://www.degen.fund/DxmmzbTX8vSRnPmKzJsDnkaRUTbuzxYiDh1ExFvwydoK</code>`
+        const inlineButtons = [
+            [{ text: ' Back to the First Page ', callback_data: 'goto_firstpage' }],
         ]
         botSystem.call_time++
         if (from_start) await customSendMessage(bot, message, text, inlineButtons)
