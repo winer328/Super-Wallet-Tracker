@@ -87,9 +87,17 @@ var botSystem = {
                     await botSystem.goToAddSeperateWalletPage(callback_data.message, false)
                     break
                 
+                case 'manage_notification':
+                    await botSystem.goToManageNotificationPage(callback_data.message, false)
+                    break
+                
                 default:
                     break
                 
+            }
+
+            if (command.startsWith('notification')) {
+                await botSystem.setNotification(command, callback_data.message)
             }
 
             return
@@ -125,7 +133,7 @@ var botSystem = {
         const inlineButtons = [
             [{ text: ' Add wallet list from url ', callback_data: 'add_wallet_list' }],
             [{ text: ' Add seperate wallet address ', callback_data: 'add_seperate_wallet' }],
-            [{ text: ' button2 ', callback_data: '234' }],
+            [{ text: ' Manage notification ', callback_data: 'manage_notification' }],
         ]
         botSystem.call_time++
         if (from_start) await customSendMessage(bot, message, text, inlineButtons)
@@ -163,6 +171,24 @@ var botSystem = {
         return
     },
 
+    goToManageNotificationPage: async (message, from_start = true) => {
+        botSystem.chat_id = message.chat.id
+        botSystem.bot_state = BOT_STATE.MANAGE_NOTIFICATION
+        let text = `You can active or pause notification from the wallets in token by click the button.\n\n 🟢 - You will get notification when transfer and swap transaction in registered wallet with that token\n 🟡 - You paused notification when transfer and swap transaction in registered wallet with that token\n\n`
+        let inlineButtons = []
+        const registered_data = await tokenListModel.find({ chat_id: message.chat.id })
+        for (row of registered_data) {
+            const active_symbol = row.is_active == true? ' 🟢 ': ' 🟡 '
+            const additional_action = row.is_active == true? 'off': 'on'
+            inlineButtons.push([{ text: `${active_symbol}${row.symbol} ${row.wallet_number} wallets`, callback_data: `notification/${row.mint_address}/${additional_action}` }])
+        }
+        inlineButtons.push([{ text: ' Back to the First Page ', callback_data: 'goto_firstpage' }])
+        botSystem.call_time++
+        if (from_start) await customSendMessage(bot, message, text, inlineButtons)
+        else await customEditMessage(bot, message, text, inlineButtons)
+        return
+    },
+
     addWalletList: async (message) => {
         const degen_url = message.text
         let prev_message = await bot.sendMessage(message.chat.id, 'fetching url ...', {
@@ -171,9 +197,20 @@ var botSystem = {
                 force_reply: false
             })
         })
-        const {token_name, mint_address, wallet_list} = await scrapeWebsite(degen_url)
-
+        const {success, msg, token_name, mint_address, wallet_list} = await scrapeWebsite(degen_url)
+        console.log(success, msg)
         await bot.deleteMessage(message.chat.id, prev_message.message_id)
+
+        if (success == false) {
+            await bot.sendMessage(message.chat.id, msg, {
+                parse_mode: 'HTML',
+                reply_markup: JSON.stringify({
+                    force_reply: false
+                })
+            })
+            return
+        }
+
         prev_message = await bot.sendMessage(message.chat.id, 'registering in Helius webhook ...', {
             parse_mode: 'HTML',
             reply_markup: JSON.stringify({
@@ -253,9 +290,9 @@ var botSystem = {
                 const balances = await getTokenBalances([wallet_address], update_one.mint_address)
                 update_one.wallet_list = [...update_one.wallet_list, wallet_address]
                 update_one.wallet_number++
-                update_one.amount += balances[0].balance
+                update_one.amount += Number((balances[0].balance/1000000).toFixed(2))
                 await update_one.save()
-                await bot.sendMessage(message.chat.id, ` 🎉 <code>${wallet_address}</code> is registered in ${update_one.symbol} token holder list`, {
+                await bot.sendMessage(message.chat.id, ` 🎉 <code>${wallet_address}</code> is registered in ${update_one.symbol} token holder list\nYou will get real time notification after 3mins from now.`, {
                     parse_mode: 'HTML',
                     reply_markup: JSON.stringify({
                         force_reply: false
@@ -271,13 +308,24 @@ var botSystem = {
             }
 
         } else {
-            await bot.sendMessage(message.chat.id, ' Excuse me, the token that you entered does not registered yet.\n Please register the token from url first.', {
+            await bot.sendMessage(message.chat.id, ' ⚠️ The token symbol that you provide does not registered yet.\n Please register the token from url first.', {
                 reply_markup: 'HTML',
                 reply_markup: JSON.stringify({
                     force_reply: false
                 })
             })
         }
+        return
+    },
+
+    setNotification: async (command, message) => {
+        const splited_command = command.split('/')
+        const mint_address = splited_command[1]
+        const flag = splited_command[2] == 'on'? true: false
+        let row = await tokenListModel.findOne({ chat_id: message.chat.id, mint_address: mint_address })
+        row.is_active = flag
+        row.save()
+        await botSystem.goToManageNotificationPage(message, false)
         return
     }
 }

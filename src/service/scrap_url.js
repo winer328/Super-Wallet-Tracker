@@ -29,11 +29,11 @@ exports.scrapeWebsite = async (url) => {
         const page = await browser.newPage();
 
         console.log('Navigating to page...');
-        await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 100000 });
         console.log('Page loaded');
 
         console.log('Waiting for .bg-card element...');
-        await page.waitForSelector('.bg-card', { timeout: 60000 });
+        await page.waitForSelector('.bg-card', { timeout: 100000 });
         console.log('.bg-card element found');
 
         console.log('Clicking the specified element...');
@@ -50,7 +50,7 @@ exports.scrapeWebsite = async (url) => {
 
         // Wait for the new content to load
         console.log('Waiting for new content to load...');
-        await page.waitForSelector('.min-w-min section', { timeout: 60000 });
+        await page.waitForSelector('.min-w-min section', { timeout: 100000 });
         console.log('New content loaded');
 
         console.log('Extracting links...');
@@ -86,13 +86,13 @@ exports.scrapeWebsite = async (url) => {
 
         const wallet_list = await parseTransaction(txIds);
 
-        return { token_name, mint_address, wallet_list };
+        return { success: true, msg: '', token_name, mint_address, wallet_list };
     } catch (error) {
         console.error('An error occurred while scraping:', error);
-        throw error;
+        return { success: false, msg: ' ⚠️ An error occurred while scraping:' + error, token_name: '', mint_address: '', wallet_list: [] };
     } finally {
         if (browser) {
-        await browser.close();
+            await browser.close();
         }
     }
 }
