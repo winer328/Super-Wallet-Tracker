@@ -119,14 +119,19 @@ var botSystem = {
 
         // console.log(result_register)
 
-
-
         botSystem.chat_id = message.chat.id
         botSystem.bot_state = BOT_STATE.START
         let text = `welcome to the wallet tracking bot!\n 🟢 - You will get notification when transfer and swap transaction in registered wallet with that token\n 🟡 - You paused notification when transfer and swap transaction in registered wallet with that token\n\n`
         const registered_data = await tokenListModel.find({ chat_id: message.chat.id })
         text += `Registered tokens : ${registered_data.length}\n`
         for (item of registered_data) {
+            const balances = await getTokenBalances(item.wallet_list, item.mint_address)
+            let totalBalance = 0
+            balances.map(item => {
+                totalBalance += item.balance
+            })
+            item.amount = (totalBalance / 1000000).toFixed(2)
+            await item.save()
             const active_symbol = item.is_active == true? '🟢': '🟡'
             text += ` ${active_symbol} <a class="text-entity-link" href="https://degen.fund/${item.mint_address}">${item.symbol}</a> ${item.wallet_number} wallets ${item.amount}M tokens holding\n`
         }

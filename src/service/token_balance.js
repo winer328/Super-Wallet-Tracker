@@ -28,11 +28,21 @@ async function getTokenBalances(walletAddresses, tokenMintAddress) {
     const tokenMint = new web3.PublicKey(tokenMintAddress);
     const balances = [];
 
+    const token_data = await connection.getAccountInfo(tokenMint);
+
     // Batch requests if possible
-    const tokenAccounts = await Promise.all(walletAddresses.map(async (walletAddress) => {
-        const walletPublicKey = new web3.PublicKey(walletAddress);
-        return splToken.getAssociatedTokenAddress(tokenMint, walletPublicKey);
-    }));
+    let tokenAccounts = [];
+    if (token_data.owner.equals(splToken.TOKEN_2022_PROGRAM_ID)) {
+        tokenAccounts = await Promise.all(walletAddresses.map(async (walletAddress) => {
+            const walletPublicKey = new web3.PublicKey(walletAddress);
+            return await splToken.getAssociatedTokenAddress(tokenMint, walletPublicKey, true, splToken.TOKEN_2022_PROGRAM_ID);
+        }));
+    } else {
+        tokenAccounts = await Promise.all(walletAddresses.map(async (walletAddress) => {
+            const walletPublicKey = new web3.PublicKey(walletAddress);
+            return splToken.getAssociatedTokenAddress(tokenMint, walletPublicKey);
+        }));
+    }
 
     // Get all account infos in one batch request
     const accountInfos = await retryWithBackoff(() => 
