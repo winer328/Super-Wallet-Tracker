@@ -48,9 +48,9 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                             })
                         })
                     }
-                    row.amount = (row.amount - Number(input_token_amount)).toFixed(2)
-                    await row.save()
-                } else if (row.mint_address == output_token_address) {
+
+                } 
+                if (row.mint_address == output_token_address) {
                     // BOUGHT
                     if (row.is_active == true) {
                         let index = row.wallet_list.lastIndexOf((swap_event.tokenOutputs)[0].userAccount)
@@ -62,8 +62,6 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                             })
                         })
                     }
-                    row.amount = (row.amount + Number(output_token_amount)).toFixed(2)
-                    await row.save()
                 }
             }
             
@@ -75,7 +73,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                 const fromUserAccount = tokenTransfer.fromUserAccount
                 const toUserAccount = tokenTransfer.toUserAccount
                 const mint_address = tokenTransfer.mint
-                const tokenAmount = (tokenTransfer.tokenAmount / 1000000).toFixed(2)
+                let tokenAmount = (tokenTransfer.tokenAmount / 1000000).toFixed(2)
                 const registered_data = await tokenListModel.find({ mint_address: mint_address })
 
                 if (registered_data.length > 0) {
@@ -101,8 +99,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                                         })
                                     })
                                 }
-                                row.amount = (row.amount - Number(tokenAmount)).toFixed(2)
-                                await row.save()
+
                             }
                         } else if (index2 > -1) {
                             if (row.is_active == true) {
@@ -114,8 +111,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                                     })
                                 })
                             }
-                            row.amount = (row.amount + Number(tokenAmount)).toFixed(2)
-                            await row.save()
+
                         }
                     }
                 }
