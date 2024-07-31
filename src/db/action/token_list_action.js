@@ -23,7 +23,7 @@ const addToken = async (newOne) => {
         newToken.is_active = newOne.is_active
         newToken.webhook_id = newOne.webhook_id
         await newToken.save()
-        return `${newOne.symbol} ${newOne.wallet_number} wallets ${newOne.amount}M tokens holding\n 🎉 It registered successfully and you will get real time notification after 3mins from now.`
+        return `${newOne.symbol} ${newOne.wallet_number} wallets ${(newOne.amount).toFixed(2)}M tokens holding\n 🎉 It registered successfully and you will get real time notification after 3mins from now.`
     }
 }
 

@@ -124,16 +124,12 @@ var botSystem = {
         let text = `welcome to the wallet tracking bot!\n 🟢 - You will get notification when transfer and swap transaction in registered wallet with that token\n 🟡 - You paused notification when transfer and swap transaction in registered wallet with that token\n\n`
         const registered_data = await tokenListModel.find({ chat_id: message.chat.id })
         text += `Registered tokens : ${registered_data.length}\n`
-        for (item of registered_data) {
-            const balances = await getTokenBalances(item.wallet_list, item.mint_address)
-            let totalBalance = 0
-            balances.map(item => {
-                totalBalance += item.balance
-            })
-            item.amount = (totalBalance / 1000000).toFixed(2)
-            await item.save()
-            const active_symbol = item.is_active == true? '🟢': '🟡'
-            text += ` ${active_symbol} <a class="text-entity-link" href="https://degen.fund/${item.mint_address}">${item.symbol}</a> ${item.wallet_number} wallets ${item.amount}M tokens holding\n`
+        for (row of registered_data) {
+            const totalBalance = await getTokenBalances(row.wallet_list, row.mint_address)
+            row.amount = totalBalance / 1000000
+            await row.save()
+            const active_symbol = row.is_active == true? '🟢': '🟡'
+            text += ` ${active_symbol} <a class="text-entity-link" href="https://degen.fund/${row.mint_address}">${row.symbol}</a> ${row.wallet_number} wallets ${(row.amount).toFixed(2)}M tokens holding\n`
         }
         const inlineButtons = [
             [{ text: ' Add wallet list from url ', callback_data: 'add_wallet_list' }],
@@ -165,7 +161,7 @@ var botSystem = {
         let text = `You can add seperate wallet address to token holder list.\n Once you add wallet to token holder list, you can receive real time notification when that wallet swap/transfer that token.\n You should add token address like /add wallet_address token_symbol\n\nex. <code>/add EZNTdLmX4BmDVgaqnSxhFE48eNRsybrjMvyS9CQsQqeh DARKBLUE</code>\n\nThere are registered token symbols that you can select.\n`
         const registered_data = await tokenListModel.find({ chat_id: message.chat.id })
         for (row of registered_data) {
-            text += ` - <code>${row.symbol}</code> ${row.wallet_number} wallet ${row.amount}M tokens holding\n`
+            text += ` - <code>${row.symbol}</code> ${row.wallet_number} wallet ${(row.amount).toFixed(2)}M tokens holding\n`
         }
         const inlineButtons = [
             [{ text: ' Back to the First Page ', callback_data: 'goto_firstpage' }],
@@ -232,17 +228,13 @@ var botSystem = {
         }
 
         if (result_register[0] == true) {
-            const balances = await getTokenBalances(wallet_list, mint_address)
-            let totalBalance = 0
-            balances.map(item => {
-                totalBalance += item.balance
-            })
+            const totalBalance = await getTokenBalances(wallet_list, mint_address)
             const webhook_id = result_register[1]
             let newOne = {}
             newOne.chat_id = message.chat.id
             newOne.mint_address = mint_address
             newOne.symbol = token_name
-            newOne.amount = (totalBalance / 1000000).toFixed(2);
+            newOne.amount = totalBalance / 1000000;
             newOne.wallet_list = wallet_list
             newOne.wallet_number = wallet_list.length
             newOne.is_active = true
@@ -292,10 +284,10 @@ var botSystem = {
             result_register = await addWebhook([wallet_address], ["SWAP", "TRANSFER"], update_one.webhook_id, update_one.wallet_list)
 
             if (result_register[0] === true) {
-                const balances = await getTokenBalances([wallet_address], update_one.mint_address)
+                const balance = await getTokenBalances([wallet_address], update_one.mint_address)
                 update_one.wallet_list = [...update_one.wallet_list, wallet_address]
                 update_one.wallet_number++
-                update_one.amount += Number((balances[0].balance/1000000).toFixed(2))
+                update_one.amount += balance/1000000
                 await update_one.save()
                 await bot.sendMessage(message.chat.id, ` 🎉 <code>${wallet_address}</code> is registered in ${update_one.symbol} token holder list\nYou will get real time notification after 3mins from now.`, {
                     parse_mode: 'HTML',
