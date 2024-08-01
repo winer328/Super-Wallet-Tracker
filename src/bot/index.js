@@ -271,7 +271,7 @@ var botSystem = {
 
         if (exist_token_row.length > 0) {
 
-            const update_one = exist_token_row[0]
+            let update_one = exist_token_row[0]
             if (update_one.wallet_list.lastIndexOf(wallet_address) > -1) {
                 await bot.sendMessage(message.chat.id, ` ⚠️ <code>${wallet_address}</code> is already registered`, {
                     parse_mode: 'HTML',
@@ -284,10 +284,10 @@ var botSystem = {
             result_register = await addWebhook([wallet_address], ["SWAP", "TRANSFER"], update_one.webhook_id, update_one.wallet_list)
 
             if (result_register[0] === true) {
-                const balance = await getTokenBalances([wallet_address], update_one.mint_address)
+                // const balance = await getTokenBalances([wallet_address], update_one.mint_address)
                 update_one.wallet_list = [...update_one.wallet_list, wallet_address]
                 update_one.wallet_number++
-                update_one.amount += balance/1000000
+                // update_one.amount += balance/1000000
                 await update_one.save()
                 await bot.sendMessage(message.chat.id, ` 🎉 <code>${wallet_address}</code> is registered in ${update_one.symbol} token holder list\nYou will get real time notification after 3mins from now.`, {
                     parse_mode: 'HTML',

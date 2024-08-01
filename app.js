@@ -12,7 +12,7 @@ const port = process.env.PORT
 
 const tokenListModel = require('./src/db/model/token_list')
 
-const fs = require('fs')
+const { addWebhook } = require('./src/service/helius_service')
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json())
@@ -90,6 +90,10 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                                     })
                                 })
                             } else {
+                                const RAYDIUM_ADDRESSES = [
+                                    '5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1', // AUTHO_V4
+                                    '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8', // OpenBook AMM
+                                ]
                                 if (row.is_active == true) {
                                     await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index1])}">${row.symbol}${index1}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">SENT</a> ${tokenAmount}M tokens to <code>${toUserAccount}</code>`, {
                                         parse_mode: 'HTML',
@@ -98,6 +102,34 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                                             force_reply: false
                                         })
                                     })
+                                }
+                                if (RAYDIUM_ADDRESSES.lastIndexOf(toUserAccount) > -1) {
+                                    await botSystem.bot.sendMessage(row.chat_id, `<code>${toUserAccount}</code> is Raydium address. \nIt isn't registered.`, {
+                                        parse_mode: 'HTML',
+                                        disable_web_page_preview: true,
+                                        reply_markup: JSON.stringify({
+                                            force_reply: false
+                                        })
+                                    })
+                                } else {
+                                    result_register = await addWebhook([toUserAccount], ["SWAP", "TRANSFER"], row.webhook_id, row.wallet_list)
+                                    if (result_register[0] === true) {
+                                        row.wallet_list = [...row.wallet_list, toUserAccount]
+                                        row.wallet_number++
+                                        await row.save()
+                                        await botSystem.bot.sendMessage(row.chat_id, ` 🎉 <code>${toUserAccount}</code> is registered in ${row.symbol} token holder list\nYou will get real time notification after 3mins from now.`, {
+                                            parse_mode: 'HTML',
+                                            reply_markup: JSON.stringify({
+                                                force_reply: false
+                                            })
+                                        })
+                                    } else {
+                                        await botSystem.bot.sendMessage(row.chat_id, `During register new wallet <code>${toUserAccount}</code>: ${result_register[1]}`, {
+                                            reply_markup: JSON.stringify({
+                                                force_reply: false
+                                            })
+                                        })
+                                    }
                                 }
 
                             }
@@ -133,8 +165,18 @@ app.use((err, req, res, next) => {
     res.status(500).send('Something broke!');
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`Server is listening at http://localhost:${port}`);
+
+    // const accountInfo = await connection.getAccountInfo(new web3.PublicKey('P3XjvfHSjLzQYpRrjp2nQLyASgUtZAmGKjPLU7u1CWG'))
+    // const tokenAccountInfo = splToken.AccountLayout.decode(accountInfo.data);
+    // console.log(tokenAccountInfo.owner)
+
+    // const RAYDIUM_AUTHORITY_ID = new web3.PublicKey('5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1'); // CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK
+    // const ORCA_ID = new web3.PublicKey('whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc');
+    // const METAORA_PRGRAM_ID = new web3.PublicKey('LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo')
+
+    // console.log(tokenAccountInfo.owner.equals(RAYDIUM_AUTHORITY_ID))
 
     mongoConnect(async () => {
         await botSystem.start()
