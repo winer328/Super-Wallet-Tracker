@@ -2,7 +2,7 @@ const web3 = require('@solana/web3.js');
 const splToken = require('@solana/spl-token');
 
 async function getTokenBalances(walletAddresses, tokenMintAddress) {
-	const connection = new web3.Connection(web3.clusterApiUrl('mainnet-beta'));
+	const connection = new web3.Connection(process.env.HTTP_RPC_URL, { wsEndpoint: process.env.WSS_RPC_URL, commitment: 'confirmed' });
 	const tokenMint = new web3.PublicKey(tokenMintAddress);
 
 	let totalBalance = 0;
