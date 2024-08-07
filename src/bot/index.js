@@ -31,7 +31,9 @@ var botSystem = {
 
         // Set custom commands 
         const commands = [
-            { command: 'start', description: 'Start the bot' }
+            { command: 'start', description: 'Start the bot' },
+            { command: 'add_wallet_list', description: 'Add wallet list from url' },
+            { command: 'add_seperate_wallet', description: 'Add seperate wallet address'}
         ]
       
         // Set custom commands when the bot starts up
@@ -51,6 +53,16 @@ var botSystem = {
                 await botSystem.goToFirstPage(message, true)
                 return
             } 
+            else if (text === '/add_wallet_list') {
+                console.log(new Date(message.date * 1000), message.from.username, "started add_wallet_list bot.")
+                await botSystem.goToAddWalletListPage(message, true)
+                return
+            }
+            else if (text === '/add_seperate_wallet') {
+                console.log(new Date(message.date * 1000), message.from.username, "started add_seperate_wallet bot.")
+                await botSystem.goToAddSeperateWalletPage(message, true)
+                return
+            }
             else if (text.lastIndexOf('/add') > -1) {
                 await botSystem.addSeperateWallet(message)
                 return
