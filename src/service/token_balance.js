@@ -21,6 +21,19 @@ async function getTokenBalances(walletAddresses, tokenMintAddress) {
     return totalBalance;
 }
 
+async function getTokenNativePrice(tokenMintAddress) {
+	const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenMintAddress}`;
+	const response = await fetch(url, {
+		method: 'GET',
+		headers: {
+		'Content-Type': 'application/json',
+		}
+	});
+	const data = await response.json();
+	return (data.pairs)[0].priceNative;
+}
+
 module.exports = {
-    getTokenBalances
+    getTokenBalances,
+	getTokenNativePrice
 }

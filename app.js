@@ -31,22 +31,28 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
             
             const input_token_address = swap_event.tokenInputs.length > 0 ?(swap_event.tokenInputs)[0].mint: ''
             const input_token_amount = swap_event.tokenInputs.length > 0 ? (Number((swap_event.tokenInputs)[0].rawTokenAmount.tokenAmount) / Math.pow(10, (swap_event.tokenInputs)[0].rawTokenAmount.decimals) / 1000000).toFixed(2): 0
+
+            const output_native_amount = swap_event.nativeOutput != null ? Number(swap_event.nativeOutput.amount) / 1000000000: 0;
             
             const output_token_address = swap_event.tokenOutputs.length > 0 ?(swap_event.tokenOutputs)[0].mint: ''
             const output_token_amount = swap_event.tokenOutputs.length > 0 ? (Number((swap_event.tokenOutputs)[0].rawTokenAmount.tokenAmount) / Math.pow(10, (swap_event.tokenOutputs)[0].rawTokenAmount.decimals) / 1000000).toFixed(2): 0
+
+            const input_native_amount = swap_event.nativeInput != null ? Number(swap_event.nativeInput.amount) / 1000000000: 0;
 
             for (row of registered_data) {
                 if (row.mint_address == input_token_address) {
                     // SOLD
                     if (row.is_active == true) {
                         let index = row.wallet_list.lastIndexOf((swap_event.tokenInputs)[0].userAccount)
-                        await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index])}">${row.symbol}${index}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">SOLD</a> ${input_token_amount}M tokens`, {
+                        await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index])}">${row.symbol_index}$${row.symbol}${index}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">SOLD</a> ${input_token_amount}M tokens for ${output_native_amount} SOL`, {
                             parse_mode: 'HTML',
                             disable_web_page_preview: true,
                             reply_markup: JSON.stringify({
                                 force_reply: false
                             })
                         })
+                        row.moved_sol_balance = row.moved_sol_balance + output_native_amount
+                        await row.save()
                     }
 
                 } 
@@ -54,7 +60,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                     // BOUGHT
                     if (row.is_active == true) {
                         let index = row.wallet_list.lastIndexOf((swap_event.tokenOutputs)[0].userAccount)
-                        await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index])}">${row.symbol}${index}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">BOUGHT</a> ${output_token_amount}M tokens`, {
+                        await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index])}">${row.symbol_index}$${row.symbol}${index}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">BOUGHT</a> ${output_token_amount}M tokens from ${input_native_amount} SOL`, {
                             parse_mode: 'HTML',
                             disable_web_page_preview: true,
                             reply_markup: JSON.stringify({
@@ -62,9 +68,11 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                             })
                         })
                     }
+                    row.moved_sol_balance = row.moved_sol_balance - input_native_amount
+                    await row.save()
                 }
             }
-            
+
         } else if (response_data[0].type == 'TRANSFER') {
             let tokenTransfers = response_data[0].tokenTransfers
             if (tokenTransfers.length == 0) return res.json({})
@@ -82,7 +90,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                         const index2 = row.wallet_list.lastIndexOf(toUserAccount)
                         if (index1 > -1) {
                             if (index2 > -1 && row.is_active == true) {
-                                await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index1])}">${row.symbol}${index1}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">SENT</a> ${tokenAmount}M tokens to <a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index2])}">${row.symbol}${index2}</a>`, {
+                                await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index1])}">${row.symbol_index}$${row.symbol}${index1}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">SENT</a> ${tokenAmount}M tokens to <a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index2])}">${row.symbol_index}$${row.symbol}${index2}</a>`, {
                                     parse_mode: 'HTML',
                                     disable_web_page_preview: true,
                                     reply_markup: JSON.stringify({
@@ -95,7 +103,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                                     '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8', // OpenBook AMM
                                 ]
                                 if (row.is_active == true) {
-                                    await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index1])}">${row.symbol}${index1}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">SENT</a> ${tokenAmount}M tokens to <code>${toUserAccount}</code>`, {
+                                    await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index1])}">${row.symbol_index}$${row.symbol}${index1}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">SENT</a> ${tokenAmount}M tokens to <code>${toUserAccount}</code>`, {
                                         parse_mode: 'HTML',
                                         disable_web_page_preview: true,
                                         reply_markup: JSON.stringify({
@@ -117,7 +125,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                                         row.wallet_list = [...row.wallet_list, toUserAccount]
                                         row.wallet_number++
                                         await row.save()
-                                        await botSystem.bot.sendMessage(row.chat_id, ` 🎉 <code>${toUserAccount}</code> is registered in ${row.symbol} token holder list\nYou will get real time notification after 3mins from now.`, {
+                                        await botSystem.bot.sendMessage(row.chat_id, ` 🎉 <code>${toUserAccount}</code> is registered in ${row.symbol_index}$${row.symbol} token holder list\nYou will get real time notification after 3mins from now.`, {
                                             parse_mode: 'HTML',
                                             reply_markup: JSON.stringify({
                                                 force_reply: false
@@ -135,7 +143,7 @@ app.post(process.env.WEBHOOK_URI, async (req, res) => {
                             }
                         } else if (index2 > -1) {
                             if (row.is_active == true) {
-                                await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index2])}">${row.symbol}${index1}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">RECEIVED</a> ${tokenAmount}M tokens from <code>${fromUserAccount}</code>`, {
+                                await botSystem.bot.sendMessage(row.chat_id, `<a class="text-entity-link" href="https://solscan.io/account/${(row.wallet_list[index2])}">${row.symbol_index}$${row.symbol}${index1}</a> <a class="text-entity-link" href="https://solscan.io/tx/${response_data[0].signature}">RECEIVED</a> ${tokenAmount}M tokens from <code>${fromUserAccount}</code>`, {
                                     parse_mode: 'HTML',
                                     disable_web_page_preview: true,
                                     reply_markup: JSON.stringify({
