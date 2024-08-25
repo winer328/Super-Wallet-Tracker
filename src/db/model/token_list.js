@@ -7,9 +7,11 @@ let model = new Schema({
     chat_id: { type: String },
     mint_address: { type: String },
     symbol: { type: String },
+    symbol_index: { type: Number, default: 1 },
     amount: { type: Number },
     wallet_list: { type: Array },
     wallet_number: { type: Number },
+    moved_sol_balance: { type: Number, default: 0 },
     is_active: { type: Boolean, default: true },
     webhook_id: { type: String, default: '' },
     createdAt: { type: Number, default: Date.now }
